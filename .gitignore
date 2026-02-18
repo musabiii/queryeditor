@@ -1,0 +1,66 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# DotCover
+*.dotCover
+
+# Visual Studio code coverage results
+*.coverage
+*.coveragexml
+
+# NCrunch
+_NCrunch_*
+.*crunch*.local.xml
+
+# WPF
+*.g.cs
+*.g.i.cs
+*_wpftmp.csproj
+
+# Temporary files
+*.tmp
+*.tmp_proj
+*.log
+*.cachefile
+*.[Cc]ache
+!?*.[Cc]ache/
+
+# Others
+~$*
+*~
+
+# JetBrains Rider
+*.sln.iml
+.idea/

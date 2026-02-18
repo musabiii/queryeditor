@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="1CQuery" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <Color name="Keyword" foreground="Blue" fontWeight="bold" />
+    <Color name="Function" foreground="DarkMagenta" />
+    <Color name="Comment" foreground="Green" />
+    <Color name="String" foreground="Brown" />
+    <Color name="Number" foreground="DarkBlue" />
+    <Color name="Operator" foreground="DarkGray" />
+
+    <RuleSet ignoreCase="true">
+        <!-- Comments -->
+        <Span color="Comment" begin="//" />
+
+        <!-- Strings with double quotes -->
+        <Span color="String">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span begin="\\" end="." />
+            </RuleSet>
+        </Span>
+
+        <!-- Strings with single quotes (dates) -->
+        <Span color="String">
+            <Begin>'</Begin>
+            <End>'</End>
+        </Span>
+
+        <!-- Keywords -->
+        <Keywords color="Keyword">
+            <Word>ВЫБРАТЬ</Word>
+            <Word>SELECT</Word>
+            <Word>ИЗ</Word>
+            <Word>FROM</Word>
+            <Word>ГДЕ</Word>
+            <Word>WHERE</Word>
+            <Word>СОЕДИНЕНИЕ</Word>
+            <Word>JOIN</Word>
+            <Word>ЛЕВОЕ</Word>
+            <Word>LEFT</Word>
+            <Word>ПРАВОЕ</Word>
+            <Word>RIGHT</Word>
+            <Word>ВНУТРЕННЕЕ</Word>
+            <Word>INNER</Word>
+            <Word>ВНЕШНЕЕ</Word>
+            <Word>OUTER</Word>
+            <Word>ПОЛНОЕ</Word>
+            <Word>FULL</Word>
+            <Word>ПО</Word>
+            <Word>ON</Word>
+            <Word>И</Word>
+            <Word>AND</Word>
+            <Word>ИЛИ</Word>
+            <Word>OR</Word>
+            <Word>НЕ</Word>
+            <Word>NOT</Word>
+            <Word>ПЕРВЫЕ</Word>
+            <Word>TOP</Word>
+            <Word>РАЗЛИЧНЫЕ</Word>
+            <Word>DISTINCT</Word>
+            <Word>КАК</Word>
+            <Word>AS</Word>
+            <Word>ПОМЕСТИТЬ</Word>
+            <Word>INTO</Word>
+            <Word>УПОРЯДОЧИТЬ</Word>
+            <Word>ORDER</Word>
+            <Word>ПО</Word>
+            <Word>BY</Word>
+            <Word>СГРУППИРОВАТЬ</Word>
+            <Word>GROUP</Word>
+            <Word>ИМЕЮЩИЕ</Word>
+            <Word>HAVING</Word>
+            <Word>ОБЪЕДИНИТЬ</Word>
+            <Word>UNION</Word>
+            <Word>ВСЕ</Word>
+            <Word>ALL</Word>
+            <Word>КОНЕЦ</Word>
+            <Word>END</Word>
+            <Word>ТОГДА</Word>
+            <Word>THEN</Word>
+            <Word>ИНАЧЕ</Word>
+            <Word>ELSE</Word>
+            <Word>КОГДА</Word>
+            <Word>WHEN</Word>
+            <Word>ВЫБОР</Word>
+            <Word>CASE</Word>
+            <Word>МЕЖДУ</Word>
+            <Word>BETWEEN</Word>
+            <Word>ЕСТЬ</Word>
+            <Word>IS</Word>
+            <Word>NULL</Word>
+            <Word>ПОДОБНО</Word>
+            <Word>LIKE</Word>
+            <Word>ИЕРАРХИЯ</Word>
+            <Word>ИЕРАРХИИ</Word>
+            <Word>ИНДЕКСИРОВАТЬ</Word>
+            <Word>ПО</Word>
+            <Word>УНИЧТОЖИТЬ</Word>
+            <Word>ВЫРАЗИТЬ</Word>
+            <Word>В</Word>
+            <Word>IN</Word>
+        </Keywords>
+
+        <!-- Functions -->
+        <Keywords color="Function">
+            <Word>ЕСТЬNULL</Word>
+            <Word>ISNULL</Word>
+            <Word>ПОДСТРОКА</Word>
+            <Word>SUBSTRING</Word>
+            <Word>ДАТА</Word>
+            <Word>DATE</Word>
+            <Word>НАЧАЛОПЕРИОДА</Word>
+            <Word>BEGINOFPERIOD</Word>
+            <Word>КОНЕЦПЕРИОДА</Word>
+            <Word>ENDOFPERIOD</Word>
+            <Word>ДОБАВИТЬКДАТЕ</Word>
+            <Word>DATEADD</Word>
+            <Word>РАЗНОСТЬДАТ</Word>
+            <Word>DATEDIFF</Word>
+            <Word>СУММА</Word>
+            <Word>SUM</Word>
+            <Word>МАКСИМУМ</Word>
+            <Word>MAX</Word>
+            <Word>МИНИМУМ</Word>
+            <Word>MIN</Word>
+            <Word>КОЛИЧЕСТВО</Word>
+            <Word>COUNT</Word>
+            <Word>СРЕДНЕЕ</Word>
+            <Word>AVG</Word>
+            <Word>ПРЕДСТАВЛЕНИЕ</Word>
+            <Word>PRESENTATION</Word>
+            <Word>ТИПЗНАЧЕНИЯ</Word>
+            <Word>VALUE</Word>
+            <Word>ЗНАЧЕНИЕ</Word>
+        </Keywords>
+
+        <!-- Operators -->
+        <Keywords color="Operator">
+            <Word>=</Word>
+            <Word>&lt;&gt;</Word>
+            <Word>!=</Word>
+            <Word>&lt;</Word>
+            <Word>&gt;</Word>
+            <Word>&lt;=</Word>
+            <Word>&gt;=</Word>
+            <Word>+</Word>
+            <Word>-</Word>
+            <Word>*</Word>
+            <Word>/</Word>
+        </Keywords>
+
+        <!-- Numbers -->
+        <Rule color="Number">
+            [0-9]+(\.[0-9]+)?
+        </Rule>
+    </RuleSet>
+</SyntaxDefinition>
