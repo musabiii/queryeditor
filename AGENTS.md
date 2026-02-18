@@ -70,6 +70,10 @@ pip --version
 - [2025-02-18] Build successful!
 - [2025-02-18] Application runs successfully!
 - [2025-02-18] Added .gitignore
+- [2025-02-18] Implemented QueryFormatter service with auto-formatting
+- [2025-02-18] Added Find/Replace dialog with search functionality
+- [2025-02-18] Added keyboard shortcuts (Ctrl+F, Ctrl+H)
+- [2025-02-18] Query auto-formatter working!
 
 ## Resources
 - https://aka.ms/dotnet/download - Download .NET SDK

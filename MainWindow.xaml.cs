@@ -7,12 +7,14 @@ using System.Windows.Media;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 using Microsoft.Win32;
+using QueryEditor1C.Services;
 
 namespace QueryEditor1C;
 
 public partial class MainWindow : Window
 {
     private string? currentFilePath;
+    private readonly QueryFormatter _formatter = new();
 
     public MainWindow()
     {
@@ -20,6 +22,9 @@ public partial class MainWindow : Window
         LoadSyntaxHighlighting();
         textEditor.TextChanged += TextEditor_TextChanged;
         textEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
+        
+        // Горячие клавиши
+        this.KeyDown += MainWindow_KeyDown;
         
         // Пример запроса
         textEditor.Text = @"ВЫБРАТЬ
@@ -80,6 +85,24 @@ public partial class MainWindow : Window
         if (currentFilePath != null)
         {
             statusText.Text = $"{currentFilePath}*";
+        }
+    }
+
+    private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control)
+        {
+            switch (e.Key)
+            {
+                case System.Windows.Input.Key.F:
+                    Find_Click(sender, e);
+                    e.Handled = true;
+                    break;
+                case System.Windows.Input.Key.H:
+                    Replace_Click(sender, e);
+                    e.Handled = true;
+                    break;
+            }
         }
     }
 
@@ -157,17 +180,45 @@ public partial class MainWindow : Window
 
     private void Find_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Поиск будет реализован в следующей версии", "Информация");
+        var dialog = new FindReplaceDialog(textEditor)
+        {
+            Owner = this,
+            Title = "Поиск"
+        };
+        dialog.Show();
     }
 
     private void Replace_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Замена будет реализована в следующей версии", "Информация");
+        var dialog = new FindReplaceDialog(textEditor)
+        {
+            Owner = this,
+            Title = "Поиск и замена"
+        };
+        dialog.Show();
     }
 
     private void FormatQuery_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Форматирование будет реализовано в следующей версии", "Информация");
+        try
+        {
+            var currentText = textEditor.Text;
+            if (string.IsNullOrWhiteSpace(currentText))
+            {
+                statusText.Text = "Нечего форматировать";
+                return;
+            }
+            
+            var formattedText = _formatter.Format(currentText);
+            textEditor.Text = formattedText;
+            statusText.Text = "Запрос отформатирован";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка форматирования: {ex.Message}", "Ошибка", 
+                          MessageBoxButton.OK, MessageBoxImage.Error);
+            statusText.Text = "Ошибка форматирования";
+        }
     }
 
     private void ValidateQuery_Click(object sender, RoutedEventArgs e)
