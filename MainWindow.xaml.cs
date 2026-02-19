@@ -282,6 +282,12 @@ public partial class MainWindow : Window
             if (item.Type == "TempTable")
             {
                 treeItem.Header = "📦 " + item.DisplayName;
+                
+                // Если временная таблица не используется - делаем серым
+                if (!item.IsUsed)
+                {
+                    treeItem.Foreground = System.Windows.Media.Brushes.Gray;
+                }
             }
             else if (item.Type == "Query")
             {

@@ -15,6 +15,8 @@ public class QueryStructureItem
     public int StartIndex { get; set; }
     public int EndIndex { get; set; }
     public List<QueryStructureItem> Children { get; set; } = new();
+    public bool IsUsed { get; set; } = true; // Для временных таблиц: используется ли в других запросах
+    public string QueryText { get; set; } = ""; // Текст запроса для анализа
 }
 
 /// <summary>
@@ -35,6 +37,7 @@ public class QueryStructureParser
         var queries = SplitQueries(query);
         int queryNumber = 1;
 
+        // Сначала собираем все запросы
         foreach (var q in queries)
         {
             var item = ParseSingleQuery(q, queryNumber);
@@ -45,7 +48,88 @@ public class QueryStructureParser
             }
         }
 
+        // Анализируем использование временных таблиц
+        AnalyzeTempTableUsage(result);
+
         return result;
+    }
+
+    /// <summary>
+    /// Анализирует какие временные таблицы используются в других запросах
+    /// </summary>
+    private void AnalyzeTempTableUsage(List<QueryStructureItem> queries)
+    {
+        // Собираем имена всех временных таблиц
+        var tempTables = queries.Where(q => q.Type == "TempTable").ToList();
+        var tempTableNames = tempTables.Select(t => t.DisplayName.ToUpperInvariant()).ToHashSet();
+
+        // Для каждой временной таблицы проверяем, используется ли она в других запросах
+        foreach (var tempTable in tempTables)
+        {
+            bool isUsed = false;
+            var tempTableName = tempTable.DisplayName.ToUpperInvariant();
+
+            foreach (var query in queries)
+            {
+                // Пропускаем саму таблицу (где она создается)
+                if (query == tempTable) continue;
+
+                // Ищем использование таблицы в тексте запроса
+                // Временные таблицы используются в FROM, JOIN и т.д.
+                if (IsTempTableUsedInQuery(query, tempTableName))
+                {
+                    isUsed = true;
+                    break;
+                }
+            }
+
+            tempTable.IsUsed = isUsed;
+        }
+    }
+
+    /// <summary>
+    /// Проверяет, используется ли временная таблица в запросе
+    /// </summary>
+    private bool IsTempTableUsedInQuery(QueryStructureItem query, string tempTableName)
+    {
+        if (string.IsNullOrEmpty(query.QueryText))
+            return false;
+
+        var queryTextUpper = query.QueryText.ToUpperInvariant();
+        var tempTableNameUpper = tempTableName.ToUpperInvariant();
+
+        // Ищем имя таблицы в тексте запроса
+        // Используем регулярное выражение для точного поиска
+        var pattern = $@"\b{Regex.Escape(tempTableNameUpper)}\b";
+        var matches = Regex.Matches(queryTextUpper, pattern);
+
+        // Если таблица найдена в тексте запроса (не в части ПОМЕСТИТЬ)
+        foreach (Match match in matches)
+        {
+            // Проверяем, что это не часть "ПОМЕСТИТЬ <таблица>"
+            var textBeforeMatch = queryTextUpper.Substring(0, match.Index);
+            var linesBefore = textBeforeMatch.Split('\n');
+            var lastLine = linesBefore.Length > 0 ? linesBefore[^1].Trim() : "";
+
+            // Если перед совпадением нет "ПОМЕСТИТЬ" или "INTO" на той же строке
+            // и это не просто объявление таблицы
+            if (!lastLine.EndsWith("ПОМЕСТИТЬ") && 
+                !lastLine.EndsWith("INTO") &&
+                !lastLine.Contains($"ПОМЕСТИТЬ {tempTableNameUpper}") &&
+                !lastLine.Contains($"INTO {tempTableNameUpper}"))
+            {
+                return true;
+            }
+        }
+
+        // Также проверяем дочерние элементы
+        foreach (var child in query.Children)
+        {
+            if (child.DisplayName.ToUpperInvariant().Contains(tempTableNameUpper))
+                return true;
+        }
+
+        return false;
     }
 
     private List<string> SplitQueries(string query)
@@ -98,7 +182,8 @@ public class QueryStructureParser
         var item = new QueryStructureItem
         {
             StartIndex = 0,
-            EndIndex = query.Length
+            EndIndex = query.Length,
+            QueryText = query
         };
 
         // Ищем ПОМЕСТИТЬ или INTO

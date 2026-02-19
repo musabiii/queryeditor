@@ -64,3 +64,6 @@ _NCrunch_*
 # JetBrains Rider
 *.sln.iml
 .idea/
+
+# Session progress tracking
+SESSION_PROGRESS.md
