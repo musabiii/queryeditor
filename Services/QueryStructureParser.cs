@@ -186,13 +186,41 @@ public class QueryStructureParser
         var currentQuery = new System.Text.StringBuilder();
         int currentStartOffset = 0;
         int currentOffset = 0;
-        var lines = fullQuery.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-
-        foreach (var line in lines)
+        
+        // Разбиваем строку с сохранением информации о разделителях
+        // Используем IndexOf для точного отслеживания позиций
+        int pos = 0;
+        while (pos < fullQuery.Length)
         {
+            // Ищем следующий перенос строки
+            int crPos = fullQuery.IndexOf('\r', pos);
+            int lfPos = fullQuery.IndexOf('\n', pos);
+            
+            int lineEnd;
+            int newLineChars;
+            
+            if (crPos != -1 && lfPos == crPos + 1)
+            {
+                // \r\n - Windows style
+                lineEnd = crPos;
+                newLineChars = 2;
+            }
+            else if (lfPos != -1)
+            {
+                // \n - Unix style
+                lineEnd = lfPos;
+                newLineChars = 1;
+            }
+            else
+            {
+                // Последняя строка без переноса
+                lineEnd = fullQuery.Length;
+                newLineChars = 0;
+            }
+            
+            string line = fullQuery.Substring(pos, lineEnd - pos);
             var trimmed = line.Trim();
             int lineLength = line.Length;
-            int newLineLength = line.EndsWith("\r") ? 1 : (line.Contains("\r\n") ? 2 : 1); // \r\n или \n
             
             // Пропускаем разделители временных таблиц (/////////)
             if (trimmed.StartsWith("//") && trimmed.Length > 10 && trimmed.All(c => c == '/' || c == '\r' || c == '\n'))
@@ -204,8 +232,9 @@ public class QueryStructureParser
                     queries.Add((queryText.Trim(), currentStartOffset, endOffset));
                     currentQuery.Clear();
                 }
-                currentOffset += lineLength + newLineLength;
+                currentOffset += lineLength + newLineChars;
                 currentStartOffset = currentOffset;
+                pos = lineEnd + newLineChars;
                 continue;
             }
             
@@ -217,13 +246,15 @@ public class QueryStructureParser
                 int endOffset = currentOffset + lineLength + 1; // +1 for semicolon position
                 queries.Add((queryText.Trim(), currentStartOffset, endOffset));
                 currentQuery.Clear();
-                currentOffset += lineLength + newLineLength;
+                currentOffset += lineLength + newLineChars;
                 currentStartOffset = currentOffset;
+                pos = lineEnd + newLineChars;
                 continue;
             }
             
             currentQuery.AppendLine(line);
-            currentOffset += lineLength + newLineLength;
+            currentOffset += lineLength + newLineChars;
+            pos = lineEnd + newLineChars;
         }
 
         // Добавляем последний запрос

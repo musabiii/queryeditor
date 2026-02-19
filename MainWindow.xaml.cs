@@ -18,6 +18,14 @@ public partial class MainWindow : Window
     private readonly QueryStructureParser _structureParser = new();
     private List<QueryStructureItem> _currentStructure = new();
     private bool _isUpdatingFromEditor = false;
+    private readonly string _logFile = "debug.log";
+
+    private void Log(string message)
+    {
+        var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
+        Console.WriteLine(line);
+        System.IO.File.AppendAllText(_logFile, line + Environment.NewLine);
+    }
 
     public MainWindow()
     {
@@ -321,8 +329,19 @@ public partial class MainWindow : Window
     {
         if (queryStructureTree == null) return;
         
+        // Сохраняем имя выделенной временной таблицы
+        string? selectedTempTableName = null;
+        if (queryStructureTree.SelectedItem is TreeViewItem selectedItem && 
+            selectedItem.Tag is QueryStructureItem selectedQuery &&
+            selectedQuery.Type == "TempTable")
+        {
+            selectedTempTableName = selectedQuery.DisplayName;
+        }
+        
         _currentStructure = _structureParser.Parse(textEditor.Text);
         queryStructureTree.Items.Clear();
+        
+        TreeViewItem? itemToSelect = null;
         
         foreach (var item in _currentStructure)
         {
@@ -345,6 +364,12 @@ public partial class MainWindow : Window
                 {
                     headerText.Foreground = System.Windows.Media.Brushes.Gray;
                 }
+                
+                // Запоминаем если это была выделенная таблица
+                if (item.DisplayName == selectedTempTableName)
+                {
+                    itemToSelect = treeItem;
+                }
             }
             else if (item.Type == "Query")
             {
@@ -354,6 +379,18 @@ public partial class MainWindow : Window
             treeItem.Header = headerText;
             
             queryStructureTree.Items.Add(treeItem);
+        }
+        
+        // Восстанавливаем выделение и стрелки
+        if (itemToSelect != null)
+        {
+            _isUpdatingFromEditor = true;
+            itemToSelect.IsSelected = true;
+            if (itemToSelect.Tag is QueryStructureItem tempItem)
+            {
+                UpdateStructureTreeArrows(tempItem);
+            }
+            _isUpdatingFromEditor = false;
         }
     }
     
@@ -386,29 +423,66 @@ public partial class MainWindow : Window
         
         if (treeItem != null && item != null)
         {
-            // Обновляем стрелки связей для временных таблиц
+            // ДИАГНОСТИКА: Выводим информацию о кликнутом элементе
+            Log($"=== CLICK DEBUG ===");
+            Log($"Clicked item: {item.DisplayName}, Type: {item.Type}");
+            Log($"Item StartIndex: {item.StartIndex}, EndIndex: {item.EndIndex}");
+            Log($"TextEditor Text.Length: {textEditor.Text.Length}");
+            Log($"_currentStructure Count: {_currentStructure.Count}");
+            
+            // Находим актуальную таблицу в текущей структуре по имени
+            QueryStructureItem? actualItem = null;
             if (item.Type == "TempTable")
             {
-                UpdateStructureTreeArrows(item);
+                actualItem = _currentStructure.FirstOrDefault(x => 
+                    x.Type == "TempTable" && x.DisplayName == item.DisplayName);
             }
             else
             {
-                // Сбрасываем стрелки если выбран не temp table
+                actualItem = _currentStructure.FirstOrDefault(x => 
+                    x.Type == "Query" && x.DisplayName == item.DisplayName);
+            }
+            
+            // ДИАГНОСТИКА: Проверяем нашли ли актуальный элемент
+            if (actualItem != null)
+            {
+                Log($"Found actualItem: {actualItem.DisplayName}");
+                Log($"ActualItem StartIndex: {actualItem.StartIndex}, EndIndex: {actualItem.EndIndex}");
+            }
+            else
+            {
+                Log($"WARNING: actualItem is null! Using original item.");
+            }
+            
+            // Используем актуальную таблицу или оригинал, если не нашли
+            var targetItem = actualItem ?? item;
+            
+            // Обновляем стрелки связей для временных таблиц
+            if (targetItem.Type == "TempTable")
+            {
+                UpdateStructureTreeArrows(targetItem);
+            }
+            else
+            {
                 ClearStructureTreeArrows();
             }
             
-            // Переходим к выбранному запросу в редакторе
-            if (item.StartIndex >= 0 && item.StartIndex < textEditor.Text.Length)
+            // Переходим к выбранному запросу в редакторе используя актуальные позиции
+            Log($"TargetItem: {targetItem.DisplayName}, StartIndex: {targetItem.StartIndex}, EndIndex: {targetItem.EndIndex}");
+            
+            if (targetItem.StartIndex >= 0 && targetItem.StartIndex < textEditor.Text.Length)
             {
                 _isUpdatingFromEditor = true;
                 try
                 {
-                    var line = textEditor.Document.GetLineByOffset(item.StartIndex);
+                    var line = textEditor.Document.GetLineByOffset(targetItem.StartIndex);
+                    Log($"Scrolling to line: {line.LineNumber}");
                     textEditor.ScrollToLine(line.LineNumber);
                     
                     // Выделяем весь текст элемента
-                    var length = Math.Min(item.EndIndex - item.StartIndex, textEditor.Text.Length - item.StartIndex);
-                    textEditor.Select(item.StartIndex, length);
+                    var length = Math.Min(targetItem.EndIndex - targetItem.StartIndex, textEditor.Text.Length - targetItem.StartIndex);
+                    Log($"Selecting from {targetItem.StartIndex}, length: {length}");
+                    textEditor.Select(targetItem.StartIndex, length);
                     
                     // Фокусируем редактор
                     textEditor.Focus();
@@ -418,6 +492,12 @@ public partial class MainWindow : Window
                     _isUpdatingFromEditor = false;
                 }
             }
+            else
+            {
+                Log($"ERROR: StartIndex {targetItem.StartIndex} is out of range [0, {textEditor.Text.Length})");
+            }
+            
+            Log($"=== END DEBUG ===");
         }
     }
     
