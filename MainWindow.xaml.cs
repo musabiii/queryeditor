@@ -342,17 +342,6 @@ public partial class MainWindow : Window
             
             treeItem.Header = headerText;
             
-            // Добавляем подзапросы
-            foreach (var child in item.Children)
-            {
-                var childItem = new TreeViewItem
-                {
-                    Header = "📋 " + child.DisplayName,
-                    Tag = child
-                };
-                treeItem.Items.Add(childItem);
-            }
-            
             queryStructureTree.Items.Add(treeItem);
         }
     }
