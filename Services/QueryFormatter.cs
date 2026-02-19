@@ -11,8 +11,8 @@ namespace QueryEditor1C.Services;
 /// </summary>
 public class QueryFormatter
 {
-    private const int IndentSize = 4;
-    private const string IndentString = "    "; // 4 пробела
+    private const int IndentSize = 1;
+    private const string IndentString = "\t"; // табуляция
     
     // Ключевые слова секций запроса - всегда с новой строки, нулевой отступ
     private static readonly HashSet<string> SectionKeywords = new(StringComparer.OrdinalIgnoreCase)
@@ -305,6 +305,7 @@ public class QueryFormatter
         var inCase = false; // Внутри конструкции ВЫБОР
         var caseIndent = 0; // Отступ для ВЫБОР
         var isFirstToken = true;
+        var needIndentForNextToken = false; // Нужен ли отступ для следующего токена
         Token? prevToken = null;
         
         for (int i = 0; i < tokens.Count; i++)
@@ -367,13 +368,31 @@ public class QueryFormatter
                 }
                 else if (!SectionKeywords.Contains(nextToken?.Value.ToUpperInvariant() ?? ""))
                 {
-                    result.AppendLine();
-                    indentLevel = 1;
+                    // Для СГРУППИРОВАТЬ ПО / GROUP BY - ПО/BY идет на той же строке
+                    if (upperValue is "СГРУППИРОВАТЬ" or "GROUP")
+                    {
+                        result.Append(" ");
+                        indentLevel = 0;
+                    }
+                    else
+                    {
+                        result.AppendLine();
+                        indentLevel = 1;
+                        needIndentForNextToken = true;
+                    }
                 }
                 
                 isFirstToken = false;
                 prevToken = token;
                 continue;
+            }
+            
+            // Если нужен отступ для этого токена (после секции SELECT, FROM, WHERE и т.д.)
+            if (needIndentForNextToken && !SectionKeywords.Contains(upperValue) && 
+                !JoinKeywords.Contains(upperValue) && upperValue is not "ПО" and not "ON")
+            {
+                result.Append(GetIndent(indentLevel));
+                needIndentForNextToken = false;
             }
             
             // Соединения
@@ -420,9 +439,9 @@ public class QueryFormatter
             if (upperValue is "ПО" or "ON")
             {
                 result.AppendLine();
-                result.Append(GetIndent(2));
+                result.Append(GetIndent(1));
                 result.Append(token.Value.ToUpperInvariant());
-                
+
                 if (nextToken != null)
                     result.Append(" ");
                 
@@ -581,7 +600,7 @@ public class QueryFormatter
     
     private string GetIndent(int level)
     {
-        return new string(' ', level * IndentSize);
+        return new string('\t', level * IndentSize);
     }
 }
 

@@ -58,18 +58,61 @@
                 <ComboBoxItem Content="Светлая тема" IsSelected="True"/>
                 <ComboBoxItem Content="Темная тема"/>
             </ComboBox>
+            <Separator/>
+            <ToggleButton x:Name="btnShowWhitespace" Content="¶" Click="ShowWhitespace_Click" Margin="2" ToolTip="Показать пробелы и табуляции"/>
         </ToolBar>
         
-        <!-- Редактор кода -->
-        <avalon:TextEditor Grid.Row="2" 
-                          x:Name="textEditor"
-                          FontFamily="Consolas"
-                          FontSize="12"
-                          ShowLineNumbers="True"
-                          WordWrap="True"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                          ScrollViewer.VerticalScrollBarVisibility="Auto"
-                          Margin="2"/>
+        <!-- Основная область: редактор + панель структуры -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="250"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Редактор кода -->
+            <avalon:TextEditor Grid.Column="0"
+                              x:Name="textEditor"
+                              FontFamily="Consolas"
+                              FontSize="12"
+                              ShowLineNumbers="True"
+                              WordWrap="True"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              Margin="2"/>
+            
+            <!-- Разделитель -->
+            <GridSplitter Grid.Column="1" 
+                         Width="5" 
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Stretch"
+                         ShowsPreview="True"/>
+            
+            <!-- Панель структуры запроса -->
+            <Border Grid.Column="2" 
+                   BorderBrush="Gray" 
+                   BorderThickness="1,0,0,0"
+                   Background="#F5F5F5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0" 
+                              Text="Структура запроса" 
+                              FontWeight="Bold"
+                              Margin="5,5,5,0"
+                              Padding="5"/>
+                    
+                    <TreeView Grid.Row="1" 
+                             x:Name="queryStructureTree"
+                             Margin="5"
+                             BorderThickness="0"
+                             Background="Transparent"/>
+                </Grid>
+            </Border>
+        </Grid>
         
         <!-- Статусная строка -->
         <StatusBar Grid.Row="3">

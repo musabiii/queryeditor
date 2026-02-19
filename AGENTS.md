@@ -1,82 +1,120 @@
-# 1C Query Editor - Project Context
+# 1C Query Editor - Agent Instructions
 
-## Project Goal
-Create a desktop text editor for Windows to edit 1C (1C:Enterprise) database queries.
+## Project Overview
+C# WPF desktop text editor for 1C:Enterprise database queries with syntax highlighting, auto-formatting, and query structure navigation.
 
-## Technology Evaluation
-- **Considered:** C# WPF, C# Avalonia, Electron + Monaco Editor, Python + PyQt
-- **Current preference:** Need to decide
-- **Development Environment:** VS Code 1.109.3 installed, .NET SDK NOT installed (only runtime)
+**Stack:** .NET 10, WPF, AvalonEdit, C# 12
 
-## Required Features
-- ✅ Syntax highlighting for 1C query language
-- ✅ Syntax validation
-- ✅ Code formatting (auto-format 1C queries)
-- ⬜ IntelliSense (optional)
-- ⬜ Database connection (optional)
-- ⬜ Query execution (optional)
+## Build Commands
 
-## 1C Query Language Keywords (for syntax highlighting)
-### Main keywords
-ВЫБРАТЬ, SELECT, ИЗ, FROM, ГДЕ, WHERE, СОЕДИНЕНИЕ, JOIN, ЛЕВОЕ, LEFT, ПРАВОЕ, RIGHT, 
-ВНУТРЕННЕЕ, INNER, ВНЕШНЕЕ, OUTER, ПОЛНОЕ, FULL, ПО, ON, И, AND, ИЛИ, OR, НЕ, NOT,
-ПЕРВЫЕ, TOP, РАЗЛИЧНЫЕ, DISTINCT, КАК, AS, ПОМЕСТИТЬ, INTO, УПОРЯДОЧИТЬ, ORDER BY,
-СГРУППИРОВАТЬ, GROUP BY, ИМЕЮЩИЕ, HAVING, ОБЪЕДИНИТЬ, UNION, ВСЕ, ALL
-
-### Functions
-ЕСТЬNULL, ISNULL, ПОДСТРОКА, SUBSTRING, ДАТА, DATE, НАЧАЛОПЕРИОДА, BEGINOFPERIOD,
-КОНЕЦПЕРИОДА, ENDOFPERIOD, ДОБАВИТЬКДАТЕ, DATEADD, РАЗНОСТЬДАТ, DATEDIFF,
-СУММА, SUM, МАКСИМУМ, MAX, МИНИМУМ, MIN, КОЛИЧЕСТВО, COUNT, СРЕДНЕЕ, AVG
-
-## Next Steps (To Do)
-1. Choose technology stack (C# vs Electron vs Python)
-2. Install required SDK (.NET SDK for C#, Node.js for Electron, Python for PyQt)
-3. Set up project structure
-4. Implement basic text editor with syntax highlighting
-5. Add 1C-specific formatting rules
-6. Implement syntax validation
-
-## Development Commands
 ```bash
-# Check .NET installation
-dotnet --version
+# Build project
+dotnet build
 
-# Check Node.js (for Electron option)
-node --version
-npm --version
+# Build release
+dotnet build -c Release
 
-# Check Python (for PyQt option)
-python --version
-pip --version
+# Run application
+dotnet run
+
+# Clean build artifacts
+dotnet clean
+
+# Restore packages
+dotnet restore
 ```
 
-## Notes
-- 1C query language is case-insensitive
-- Syntax similar to SQL but with Russian keywords
-- Comments start with //
-- Strings use double quotes ""
-- Date literals use single quotes with # or just dates in single quotes
+**Note:** No test project exists yet. To add tests, create a new xUnit/NUnit project with `dotnet new xunit -n QueryEditor1C.Tests`.
 
-## Decisions Log
-- [2025-02-18] Project initialized
-- [2025-02-18] Evaluating C# vs other technologies for desktop editor
-- [2025-02-18] VS Code present, missing .NET SDK for C# development
-- [2025-02-18] Selected C# WPF + AvalonEdit
-- [2025-02-18] Project structure created
-- [2025-02-18] Syntax highlighting for 1C implemented (XSHD file)
-- [2025-02-18] Basic UI with menu, toolbar, status bar created
-- [2025-02-18] File operations (New, Open, Save) implemented
-- [2025-02-18] Theme switching (Light/Dark) implemented
-- [2025-02-18] Build successful!
-- [2025-02-18] Application runs successfully!
-- [2025-02-18] Added .gitignore
-- [2025-02-18] Implemented QueryFormatter service with auto-formatting
-- [2025-02-18] Added Find/Replace dialog with search functionality
-- [2025-02-18] Added keyboard shortcuts (Ctrl+F, Ctrl+H)
-- [2025-02-18] Query auto-formatter working!
+## Code Style Guidelines
 
-## Resources
-- https://aka.ms/dotnet/download - Download .NET SDK
-- AvalonEdit - Syntax highlighting library for C#
-- Monaco Editor - Syntax highlighting for Electron
-- Scintilla/PyQt - Syntax highlighting for Python
+### Formatting
+- **Indentation:** 4 spaces (no tabs)
+- **Line endings:** CRLF (Windows)
+- **Max line length:** 120 characters
+- **Braces:** K&R style (opening brace on same line)
+- **Namespaces:** File-scoped (no curly braces)
+
+### Naming Conventions
+- **Classes/Structs/Interfaces:** PascalCase (`QueryFormatter`, `ITokenizer`)
+- **Methods:** PascalCase (`FormatQuery`, `LoadSyntaxHighlighting`)
+- **Properties:** PascalCase (`CurrentFilePath`, `IsModified`)
+- **Fields:**
+  - Private: `_camelCase` (`_formatter`, `_structureParser`)
+  - Public: PascalCase
+  - Constants/Readonly: PascalCase
+- **Parameters:** camelCase
+- **Local variables:** camelCase
+- **Generic types:** PascalCase with T prefix (`TResult`, `TInput`)
+
+### Types & Nullability
+- **Nullable reference types:** Enabled (`<Nullable>enable</Nullable>`)
+- Use `?` suffix for nullable types: `string? currentFilePath`
+- Use `var` when type is obvious from right side
+- Use target-typed new: `new()` instead of `new Dictionary<string, int>()`
+- Prefer `is` pattern matching: `if (obj is string s)`
+
+### Imports
+- **Implicit usings:** Enabled (don't import common namespaces like `System`, `System.Linq`)
+- Add explicit imports only for non-default namespaces
+- Group imports: System → Third-party → Project
+- No wildcard imports
+
+### Error Handling
+- Use exceptions for exceptional cases only
+- Prefer `try-catch` over error codes
+- Log errors before showing UI messages
+- Always check for null before dereferencing nullable types
+
+### Comments
+- XML documentation for public APIs (`/// <summary>`)
+- Russian comments acceptable for 1C domain concepts
+- Avoid obvious comments (`// increment counter`)
+- Use `// TODO:` for temporary code
+
+### WPF/XAML Specific
+- Event handlers: `ControlName_EventName` (e.g., `OpenFile_Click`)
+- Private methods: PascalCase
+- Use `nameof()` for property names in bindings
+- Prefer data binding over direct control manipulation
+
+### 1C Query Domain
+- Keywords: Mixed Russian/English (ВЫБРАТЬ, SELECT, ИЗ, FROM)
+- Preserve original casing in formatter output
+- Support both Cyrillic and Latin aliases
+
+## Project Structure
+```
+├── *.xaml              # WPF views
+├── *.xaml.cs           # Code-behind
+├── Services/           # Business logic
+│   ├── QueryFormatter.cs
+│   └── QueryStructureParser.cs
+├── QueryEditor1C/
+│   └── Resources/      # Embedded resources
+└── Syntax/             # Syntax definitions
+```
+
+## Common Tasks
+
+```bash
+# Add new class
+dotnet new class -n MyClass -o Services
+
+# Add package reference
+dotnet add package PackageName
+
+# Build single file
+dotnet build QueryEditor1C.csproj
+```
+
+## Key Dependencies
+- **AvalonEdit 6.3.1.120** - Syntax highlighting editor
+- **.NET 10** - Target framework
+
+## Keyboard Shortcuts
+- **Ctrl+N** - New file
+- **Ctrl+O** - Open file
+- **Ctrl+S** - Save file
+- **Ctrl+F** - Find
+- **Ctrl+H** - Replace

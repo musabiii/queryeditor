@@ -15,6 +15,7 @@ public partial class MainWindow : Window
 {
     private string? currentFilePath;
     private readonly QueryFormatter _formatter = new();
+    private readonly QueryStructureParser _structureParser = new();
 
     public MainWindow()
     {
@@ -25,6 +26,9 @@ public partial class MainWindow : Window
         
         // Горячие клавиши
         this.KeyDown += MainWindow_KeyDown;
+        
+        // Обновление структуры при изменении текста
+        textEditor.TextChanged += (s, e) => UpdateQueryStructurePanel();
         
         // Пример запроса
         textEditor.Text = @"ВЫБРАТЬ
@@ -198,6 +202,14 @@ public partial class MainWindow : Window
         dialog.Show();
     }
 
+    private void ShowWhitespace_Click(object sender, RoutedEventArgs e)
+    {
+        var isChecked = btnShowWhitespace.IsChecked ?? false;
+        textEditor.Options.ShowSpaces = isChecked;
+        textEditor.Options.ShowTabs = isChecked;
+        textEditor.Options.ShowEndOfLine = isChecked;
+    }
+
     private void FormatQuery_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -243,5 +255,70 @@ public partial class MainWindow : Window
         }
     }
 
+    #endregion
+
+    #region Панель структуры запроса
+    
+    /// <summary>
+    /// Обновляет панель структуры запроса
+    /// </summary>
+    private void UpdateQueryStructurePanel()
+    {
+        if (queryStructureTree == null) return;
+        
+        var structure = _structureParser.Parse(textEditor.Text);
+        queryStructureTree.Items.Clear();
+        
+        foreach (var item in structure)
+        {
+            var treeItem = new TreeViewItem
+            {
+                Header = item.DisplayName,
+                Tag = item,
+                IsExpanded = true
+            };
+            
+            // Добавляем иконку в зависимости от типа
+            if (item.Type == "TempTable")
+            {
+                treeItem.Header = "📦 " + item.DisplayName;
+            }
+            else if (item.Type == "Query")
+            {
+                treeItem.Header = "📝 " + item.DisplayName;
+            }
+            
+            // Добавляем подзапросы
+            foreach (var child in item.Children)
+            {
+                var childItem = new TreeViewItem
+                {
+                    Header = "📋 " + child.DisplayName,
+                    Tag = child
+                };
+                treeItem.Items.Add(childItem);
+            }
+            
+            queryStructureTree.Items.Add(treeItem);
+        }
+    }
+    
+    /// <summary>
+    /// Обработчик выбора элемента в дереве структуры
+    /// </summary>
+    private void QueryStructureTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (e.NewValue is TreeViewItem treeItem && treeItem.Tag is QueryStructureItem item)
+        {
+            // Переходим к выбранному запросу в редакторе
+            if (item.StartIndex >= 0 && item.StartIndex < textEditor.Text.Length)
+            {
+                var line = textEditor.Document.GetLineByOffset(item.StartIndex);
+                textEditor.ScrollToLine(line.LineNumber);
+                textEditor.Select(item.StartIndex, Math.Min(100, item.EndIndex - item.StartIndex));
+            }
+        }
+    }
+    
     #endregion
 }
