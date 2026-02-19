@@ -34,13 +34,13 @@ public class QueryStructureParser
             return result;
 
         // Разбиваем на отдельные запросы по разделителям ; или /////////
-        var queries = SplitQueries(query);
+        var queriesWithOffsets = SplitQueriesWithOffsets(query);
         int queryNumber = 1;
 
         // Сначала собираем все запросы
-        foreach (var q in queries)
+        foreach (var (q, startOffset, endOffset) in queriesWithOffsets)
         {
-            var item = ParseSingleQuery(q, queryNumber);
+            var item = ParseSingleQuery(q, queryNumber, startOffset, endOffset);
             if (item != null)
             {
                 result.Add(item);
@@ -132,24 +132,30 @@ public class QueryStructureParser
         return false;
     }
 
-    private List<string> SplitQueries(string query)
+    private List<(string query, int startOffset, int endOffset)> SplitQueriesWithOffsets(string fullQuery)
     {
-        var queries = new List<string>();
+        var queries = new List<(string, int, int)>();
         var currentQuery = new System.Text.StringBuilder();
-        var lines = query.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+        int currentStartOffset = 0;
+        int lineStartOffset = 0;
+        var lines = fullQuery.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
+            int lineLength = line.Length;
             
             // Пропускаем разделители временных таблиц (/////////)
             if (trimmed.StartsWith("//") && trimmed.Length > 10 && trimmed.All(c => c == '/' || c == '\r' || c == '\n'))
             {
                 if (currentQuery.Length > 0)
                 {
-                    queries.Add(currentQuery.ToString().Trim());
+                    var queryText = currentQuery.ToString().Trim();
+                    int endOffset = lineStartOffset;
+                    queries.Add((queryText, currentStartOffset, endOffset));
                     currentQuery.Clear();
                 }
+                lineStartOffset += lineLength + 1; // +1 for newline
                 continue;
             }
             
@@ -157,32 +163,44 @@ public class QueryStructureParser
             if (trimmed.EndsWith(";") && !trimmed.StartsWith("//"))
             {
                 currentQuery.AppendLine(line);
-                queries.Add(currentQuery.ToString().Trim());
+                var queryText = currentQuery.ToString().Trim();
+                int endOffset = lineStartOffset + lineLength;
+                queries.Add((queryText, currentStartOffset, endOffset));
                 currentQuery.Clear();
+                currentStartOffset = lineStartOffset + lineLength + 1;
+                lineStartOffset = currentStartOffset;
                 continue;
             }
             
             currentQuery.AppendLine(line);
+            lineStartOffset += lineLength + 1; // +1 for newline
         }
 
         // Добавляем последний запрос
         if (currentQuery.Length > 0)
         {
-            queries.Add(currentQuery.ToString().Trim());
+            var queryText = currentQuery.ToString().Trim();
+            int endOffset = lineStartOffset;
+            queries.Add((queryText, currentStartOffset, endOffset));
         }
 
-        return queries.Where(q => !string.IsNullOrWhiteSpace(q)).ToList();
+        return queries.Where(q => !string.IsNullOrWhiteSpace(q.Item1)).ToList();
     }
 
-    private QueryStructureItem? ParseSingleQuery(string query, int queryNumber)
+    private List<string> SplitQueries(string query)
+    {
+        return SplitQueriesWithOffsets(query).Select(q => q.Item1).ToList();
+    }
+
+    private QueryStructureItem? ParseSingleQuery(string query, int queryNumber, int startOffset, int endOffset)
     {
         if (string.IsNullOrWhiteSpace(query))
             return null;
 
         var item = new QueryStructureItem
         {
-            StartIndex = 0,
-            EndIndex = query.Length,
+            StartIndex = startOffset,
+            EndIndex = endOffset,
             QueryText = query
         };
 
@@ -201,7 +219,7 @@ public class QueryStructureParser
         }
 
         // Ищем вложенные запросы (ВЫБРАТЬ внутри ВЫБРАТЬ)
-        item.Children = FindSubqueries(query);
+        item.Children = FindSubqueries(query, startOffset);
 
         return item;
     }
@@ -229,7 +247,7 @@ public class QueryStructureParser
         return null;
     }
 
-    private List<QueryStructureItem> FindSubqueries(string query)
+    private List<QueryStructureItem> FindSubqueries(string query, int baseOffset = 0)
     {
         var subqueries = new List<QueryStructureItem>();
         
@@ -241,8 +259,8 @@ public class QueryStructureParser
         foreach (Match match in matches)
         {
             // Находим конец подзапроса
-            int start = match.Index;
-            int end = FindClosingParenthesis(query, start);
+            int start = match.Index + baseOffset;
+            int end = FindClosingParenthesis(query, match.Index) + baseOffset;
             
             if (end > start)
             {

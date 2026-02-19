@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     private string? currentFilePath;
     private readonly QueryFormatter _formatter = new();
     private readonly QueryStructureParser _structureParser = new();
+    private List<QueryStructureItem> _currentStructure = new();
+    private bool _isUpdatingFromEditor = false;
 
     public MainWindow()
     {
@@ -78,6 +80,48 @@ public partial class MainWindow : Window
     private void Caret_PositionChanged(object? sender, EventArgs e)
     {
         UpdateStatus();
+        
+        // Обновляем выделение в дереве структуры при перемещении курсора
+        if (!_isUpdatingFromEditor)
+        {
+            UpdateStructureTreeSelection();
+        }
+    }
+    
+    /// <summary>
+    /// Выделяет в дереве структуры элемент, соответствующий текущей позиции курсора
+    /// </summary>
+    private void UpdateStructureTreeSelection()
+    {
+        if (_currentStructure.Count == 0 || queryStructureTree == null) return;
+        
+        var caretOffset = textEditor.TextArea.Caret.Offset;
+        
+        // Ищем элемент, в котором находится курсор
+        QueryStructureItem? selectedItem = null;
+        foreach (var item in _currentStructure)
+        {
+            if (caretOffset >= item.StartIndex && caretOffset <= item.EndIndex)
+            {
+                selectedItem = item;
+                break;
+            }
+        }
+        
+        if (selectedItem != null)
+        {
+            // Находим соответствующий TreeViewItem
+            foreach (TreeViewItem treeItem in queryStructureTree.Items)
+            {
+                if (treeItem.Tag is QueryStructureItem item && item == selectedItem)
+                {
+                    _isUpdatingFromEditor = true;
+                    treeItem.IsSelected = true;
+                    _isUpdatingFromEditor = false;
+                    break;
+                }
+            }
+        }
     }
 
     private void UpdateStatus()
@@ -266,33 +310,37 @@ public partial class MainWindow : Window
     {
         if (queryStructureTree == null) return;
         
-        var structure = _structureParser.Parse(textEditor.Text);
+        _currentStructure = _structureParser.Parse(textEditor.Text);
         queryStructureTree.Items.Clear();
         
-        foreach (var item in structure)
+        foreach (var item in _currentStructure)
         {
             var treeItem = new TreeViewItem
             {
-                Header = item.DisplayName,
                 Tag = item,
                 IsExpanded = true
             };
             
+            // Создаем TextBlock для заголовка с возможностью изменения цвета
+            var headerText = new System.Windows.Controls.TextBlock();
+            
             // Добавляем иконку в зависимости от типа
             if (item.Type == "TempTable")
             {
-                treeItem.Header = "📦 " + item.DisplayName;
+                headerText.Text = "📦 " + item.DisplayName;
                 
                 // Если временная таблица не используется - делаем серым
                 if (!item.IsUsed)
                 {
-                    treeItem.Foreground = System.Windows.Media.Brushes.Gray;
+                    headerText.Foreground = System.Windows.Media.Brushes.Gray;
                 }
             }
             else if (item.Type == "Query")
             {
-                treeItem.Header = "📝 " + item.DisplayName;
+                headerText.Text = "📝 " + item.DisplayName;
             }
+            
+            treeItem.Header = headerText;
             
             // Добавляем подзапросы
             foreach (var child in item.Children)
@@ -314,16 +362,91 @@ public partial class MainWindow : Window
     /// </summary>
     private void QueryStructureTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        if (e.NewValue is TreeViewItem treeItem && treeItem.Tag is QueryStructureItem item)
+        System.Diagnostics.Debug.WriteLine($"SelectedItemChanged called. _isUpdatingFromEditor={_isUpdatingFromEditor}, NewValue={e.NewValue?.GetType().Name}");
+        
+        if (_isUpdatingFromEditor) return;
+        
+        // Проверяем, что новое значение не null
+        if (e.NewValue == null) return;
+        
+        // Получаем выбранный элемент
+        TreeViewItem? treeItem = null;
+        QueryStructureItem? item = null;
+        
+        if (e.NewValue is TreeViewItem tvi)
+        {
+            treeItem = tvi;
+            item = tvi.Tag as QueryStructureItem;
+            System.Diagnostics.Debug.WriteLine($"Found TreeViewItem with Tag={item?.DisplayName}");
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"NewValue is not TreeViewItem, it's {e.NewValue.GetType().Name}");
+        }
+        
+        if (treeItem != null && item != null)
         {
             // Переходим к выбранному запросу в редакторе
             if (item.StartIndex >= 0 && item.StartIndex < textEditor.Text.Length)
             {
-                var line = textEditor.Document.GetLineByOffset(item.StartIndex);
-                textEditor.ScrollToLine(line.LineNumber);
-                textEditor.Select(item.StartIndex, Math.Min(100, item.EndIndex - item.StartIndex));
+                _isUpdatingFromEditor = true;
+                try
+                {
+                    var line = textEditor.Document.GetLineByOffset(item.StartIndex);
+                    textEditor.ScrollToLine(line.LineNumber);
+                    
+                    // Выделяем весь текст элемента
+                    var length = Math.Min(item.EndIndex - item.StartIndex, textEditor.Text.Length - item.StartIndex);
+                    textEditor.Select(item.StartIndex, length);
+                    
+                    // Фокусируем редактор
+                    textEditor.Focus();
+                }
+                finally
+                {
+                    _isUpdatingFromEditor = false;
+                }
             }
         }
+    }
+    
+    /// <summary>
+    /// Обработчик клика мышью в дереве структуры
+    /// </summary>
+    private void QueryStructureTree_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine("PreviewMouseLeftButtonDown in TreeView");
+        
+        // Получаем элемент, на который кликнули
+        var source = e.OriginalSource as System.Windows.DependencyObject;
+        if (source == null) return;
+        
+        // Ищем TreeViewItem вверх по визуальному дереву
+        var treeViewItem = FindParent<TreeViewItem>(source);
+        if (treeViewItem != null)
+        {
+            System.Diagnostics.Debug.WriteLine($"Found TreeViewItem: {treeViewItem.Tag?.GetType().Name}");
+            
+            // Устанавливаем выделение
+            if (treeViewItem.Tag is QueryStructureItem item)
+            {
+                System.Diagnostics.Debug.WriteLine($"Item: {item.DisplayName}, StartIndex: {item.StartIndex}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Находит родительский элемент указанного типа в визуальном дереве
+    /// </summary>
+    private T? FindParent<T>(System.Windows.DependencyObject child) where T : System.Windows.DependencyObject
+    {
+        while (child != null)
+        {
+            if (child is T parent)
+                return parent;
+            child = System.Windows.Media.VisualTreeHelper.GetParent(child);
+        }
+        return null;
     }
     
     #endregion

@@ -109,7 +109,25 @@
                              x:Name="queryStructureTree"
                              Margin="5"
                              BorderThickness="0"
-                             Background="Transparent"/>
+                             Background="Transparent"
+                             SelectedItemChanged="QueryStructureTree_SelectedItemChanged"
+                             PreviewMouseLeftButtonDown="QueryStructureTree_PreviewMouseLeftButtonDown">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem">
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="2"/>
+                                <Setter Property="FontWeight" Value="Normal"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                    </TreeView>
                 </Grid>
             </Border>
         </Grid>
