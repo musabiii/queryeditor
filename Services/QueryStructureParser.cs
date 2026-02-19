@@ -132,30 +132,80 @@ public class QueryStructureParser
         return false;
     }
 
+    /// <summary>
+    /// Получает связанные временные таблицы для указанной таблицы
+    /// </summary>
+    /// <param name="allQueries">Все запросы в пакете</param>
+    /// <param name="selectedTable">Выделенная временная таблица</param>
+    /// <returns>
+    /// Item1: Таблицы которые ИСПОЛЬЗУЮТ выделенную таблицу (→ стрелка вправо)<br/>
+    /// Item2: Таблицы которые ИСПОЛЬЗУЮТСЯ в выделенной таблице (← стрелка влево)
+    /// </returns>
+    public (List<QueryStructureItem> TablesThatUseSelected, List<QueryStructureItem> TablesUsedInSelected) 
+        GetRelatedTempTables(List<QueryStructureItem> allQueries, QueryStructureItem selectedTable)
+    {
+        var tablesThatUseSelected = new List<QueryStructureItem>();
+        var tablesUsedInSelected = new List<QueryStructureItem>();
+        
+        if (selectedTable.Type != "TempTable")
+            return (tablesThatUseSelected, tablesUsedInSelected);
+
+        var selectedTableName = selectedTable.DisplayName.ToUpperInvariant();
+        var allTempTables = allQueries.Where(q => q.Type == "TempTable").ToList();
+
+        // 1. Ищем таблицы которые ИСПОЛЬЗУЮТ выделенную таблицу (кроме самой себя)
+        foreach (var tempTable in allTempTables)
+        {
+            if (tempTable == selectedTable) continue;
+            
+            // Проверяем использует ли эта таблица выделенную
+            if (IsTempTableUsedInQuery(tempTable, selectedTableName))
+            {
+                tablesThatUseSelected.Add(tempTable);
+            }
+        }
+
+        // 2. Ищем таблицы которые ИСПОЛЬЗУЮТСЯ в выделенной таблице
+        foreach (var tempTable in allTempTables)
+        {
+            if (tempTable == selectedTable) continue;
+            
+            // Проверяем используется ли эта таблица в выделенной
+            if (IsTempTableUsedInQuery(selectedTable, tempTable.DisplayName.ToUpperInvariant()))
+            {
+                tablesUsedInSelected.Add(tempTable);
+            }
+        }
+
+        return (tablesThatUseSelected, tablesUsedInSelected);
+    }
+
     private List<(string query, int startOffset, int endOffset)> SplitQueriesWithOffsets(string fullQuery)
     {
         var queries = new List<(string, int, int)>();
         var currentQuery = new System.Text.StringBuilder();
         int currentStartOffset = 0;
-        int lineStartOffset = 0;
+        int currentOffset = 0;
         var lines = fullQuery.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
             int lineLength = line.Length;
+            int newLineLength = line.EndsWith("\r") ? 1 : (line.Contains("\r\n") ? 2 : 1); // \r\n или \n
             
             // Пропускаем разделители временных таблиц (/////////)
             if (trimmed.StartsWith("//") && trimmed.Length > 10 && trimmed.All(c => c == '/' || c == '\r' || c == '\n'))
             {
                 if (currentQuery.Length > 0)
                 {
-                    var queryText = currentQuery.ToString().Trim();
-                    int endOffset = lineStartOffset;
-                    queries.Add((queryText, currentStartOffset, endOffset));
+                    var queryText = currentQuery.ToString();
+                    int endOffset = currentOffset;
+                    queries.Add((queryText.Trim(), currentStartOffset, endOffset));
                     currentQuery.Clear();
                 }
-                lineStartOffset += lineLength + 1; // +1 for newline
+                currentOffset += lineLength + newLineLength;
+                currentStartOffset = currentOffset;
                 continue;
             }
             
@@ -163,25 +213,25 @@ public class QueryStructureParser
             if (trimmed.EndsWith(";") && !trimmed.StartsWith("//"))
             {
                 currentQuery.AppendLine(line);
-                var queryText = currentQuery.ToString().Trim();
-                int endOffset = lineStartOffset + lineLength;
-                queries.Add((queryText, currentStartOffset, endOffset));
+                var queryText = currentQuery.ToString();
+                int endOffset = currentOffset + lineLength + 1; // +1 for semicolon position
+                queries.Add((queryText.Trim(), currentStartOffset, endOffset));
                 currentQuery.Clear();
-                currentStartOffset = lineStartOffset + lineLength + 1;
-                lineStartOffset = currentStartOffset;
+                currentOffset += lineLength + newLineLength;
+                currentStartOffset = currentOffset;
                 continue;
             }
             
             currentQuery.AppendLine(line);
-            lineStartOffset += lineLength + 1; // +1 for newline
+            currentOffset += lineLength + newLineLength;
         }
 
         // Добавляем последний запрос
         if (currentQuery.Length > 0)
         {
-            var queryText = currentQuery.ToString().Trim();
-            int endOffset = lineStartOffset;
-            queries.Add((queryText, currentStartOffset, endOffset));
+            var queryText = currentQuery.ToString();
+            int endOffset = currentOffset;
+            queries.Add((queryText.Trim(), currentStartOffset, endOffset));
         }
 
         return queries.Where(q => !string.IsNullOrWhiteSpace(q.Item1)).ToList();

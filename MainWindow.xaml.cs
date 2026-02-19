@@ -117,6 +117,17 @@ public partial class MainWindow : Window
                 {
                     _isUpdatingFromEditor = true;
                     treeItem.IsSelected = true;
+                    
+                    // Обновляем стрелки связей если это временная таблица
+                    if (selectedItem.Type == "TempTable")
+                    {
+                        UpdateStructureTreeArrows(selectedItem);
+                    }
+                    else
+                    {
+                        ClearStructureTreeArrows();
+                    }
+                    
                     _isUpdatingFromEditor = false;
                     break;
                 }
@@ -375,6 +386,17 @@ public partial class MainWindow : Window
         
         if (treeItem != null && item != null)
         {
+            // Обновляем стрелки связей для временных таблиц
+            if (item.Type == "TempTable")
+            {
+                UpdateStructureTreeArrows(item);
+            }
+            else
+            {
+                // Сбрасываем стрелки если выбран не temp table
+                ClearStructureTreeArrows();
+            }
+            
             // Переходим к выбранному запросу в редакторе
             if (item.StartIndex >= 0 && item.StartIndex < textEditor.Text.Length)
             {
@@ -397,6 +419,91 @@ public partial class MainWindow : Window
                 }
             }
         }
+    }
+    
+    /// <summary>
+    /// Обновляет стрелки связей в дереве структуры при выборе временной таблицы
+    /// </summary>
+    private void UpdateStructureTreeArrows(QueryStructureItem selectedTable)
+    {
+        var (tablesThatUseSelected, tablesUsedInSelected) = _structureParser.GetRelatedTempTables(_currentStructure, selectedTable);
+        
+        // Собираем имена таблиц для быстрого поиска
+        var tablesThatUseNames = tablesThatUseSelected.Select(t => t.DisplayName).ToHashSet();
+        var tablesUsedNames = tablesUsedInSelected.Select(t => t.DisplayName).ToHashSet();
+        
+        // Обновляем все элементы дерева
+        foreach (TreeViewItem treeItem in queryStructureTree.Items)
+        {
+            if (treeItem.Tag is QueryStructureItem item && item.Type == "TempTable")
+            {
+                UpdateTreeItemHeader(treeItem, item, tablesThatUseNames, tablesUsedNames);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Сбрасывает стрелки в дереве структуры
+    /// </summary>
+    private void ClearStructureTreeArrows()
+    {
+        foreach (TreeViewItem treeItem in queryStructureTree.Items)
+        {
+            if (treeItem.Tag is QueryStructureItem item)
+            {
+                // Просто обновляем заголовок без стрелок
+                var headerText = new System.Windows.Controls.TextBlock();
+                
+                if (item.Type == "TempTable")
+                {
+                    headerText.Text = "📦 " + item.DisplayName;
+                    if (!item.IsUsed)
+                    {
+                        headerText.Foreground = System.Windows.Media.Brushes.Gray;
+                    }
+                }
+                else if (item.Type == "Query")
+                {
+                    headerText.Text = "📝 " + item.DisplayName;
+                }
+                
+                treeItem.Header = headerText;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Обновляет заголовок элемента дерева с учетом стрелок связей
+    /// </summary>
+    private void UpdateTreeItemHeader(TreeViewItem treeItem, QueryStructureItem item, HashSet<string> tablesThatUse, HashSet<string> tablesUsedIn)
+    {
+        var headerText = new System.Windows.Controls.TextBlock();
+        var displayName = item.DisplayName;
+        
+        // Определяем стрелки (обе справа)
+        string arrow = "";
+        
+        if (tablesThatUse.Contains(displayName))
+        {
+            // Эта таблица использует выделенную → стрелка вправо справа
+            arrow = " →";
+        }
+        else if (tablesUsedIn.Contains(displayName))
+        {
+            // Эта таблица используется в выделенной ← стрелка влево справа
+            arrow = " ←";
+        }
+        
+        // Формируем текст: 📦 ИмяТаблицы → или 📦 ИмяТаблицы ←
+        headerText.Text = "📦 " + displayName + arrow;
+        
+        // Если временная таблица не используется - делаем серым
+        if (!item.IsUsed)
+        {
+            headerText.Foreground = System.Windows.Media.Brushes.Gray;
+        }
+        
+        treeItem.Header = headerText;
     }
     
     /// <summary>
